@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.app.name }}-create-pipelinerun
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-weight: "10"
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      serviceAccountName: pipeline
+      restartPolicy: Never
+      containers:
+      - name: create-pipelinerun
+        image: quay.io/openshift/origin-cli:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          cat <<EOF | oc apply -f -
+          apiVersion: tekton.dev/v1
+          kind: PipelineRun
+          metadata:
+            name: {{ .Values.app.name }}-pr
+            namespace: {{ .Release.Namespace }}
+            labels:
+              app.kubernetes.io/instance: {{ .Values.app.name }}
+              app.kubernetes.io/name: {{ .Values.app.name }}
+              operator.tekton.dev/operand-name: openshift-pipelines-addons
+              pipeline.openshift.io/runtime: nodejs
+              pipeline.openshift.io/runtime-version: 20-minimal-ubi8
+              pipeline.openshift.io/type: kubernetes
+              tekton.dev/pipeline: {{ .Values.app.name }}
+          spec:
+            params:
+              - name: IMAGE
+                value: '{{ .Values.image.host }}/{{ .Values.image.organization }}/{{ .Values.image.name }}'
+              - name: IMAGE_TAG
+                value: '{{ .Values.image.tag }}'
+              - name: PATH_CONTEXT
+                value: .
+              - name: VERSION
+                value: 20-minimal-ubi8
+            pipelineRef:
+              name: {{ .Values.app.name }}-build
+            taskRunTemplate:
+              serviceAccountName: pipeline
+            timeouts:
+              pipeline: 1h0m0s
+            workspaces:
+              - name: shared-data
+                volumeClaimTemplate:
+                  metadata:
+                    labels:
+                      tekton.dev/pipeline: {{ .Values.app.name }}
+                  spec:
+                    accessModes:
+                      - ReadWriteOnce
+                    resources:
+                      requests:
+                        storage: 1Gi
+          EOF
+          echo "PipelineRun created successfully."

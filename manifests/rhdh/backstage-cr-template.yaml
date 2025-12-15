@@ -1,0 +1,20 @@
+apiVersion: rhdh.redhat.com/v1alpha1
+kind: Backstage
+metadata:
+  name: demo
+  namespace: ${RHDH_NAMESPACE}
+spec:
+  application:
+    appConfig:
+      configMaps:
+        - name: app-config-rhdh
+    dynamicPluginsConfigMapName: dynamic-plugins-rhdh
+    extraEnvs:
+      secrets:
+        - name: rhdh-secrets
+    replicas: 1
+    route:
+      enabled: true
+  database:
+    enableLocalDb: true
+

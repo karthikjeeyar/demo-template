@@ -1,0 +1,111 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dynamic-plugins-rhdh
+  namespace: ${RHDH_NAMESPACE}
+data:
+  dynamic-plugins.yaml: |
+    includes:
+      - dynamic-plugins.default.yaml
+    plugins:
+      # GitHub Org Catalog Backend
+      - package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-github-org-dynamic
+        disabled: false
+
+      # JFrog Artifactory
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-jfrog-artifactory
+        disabled: false
+
+      # Tech Radar
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-tech-radar
+        disabled: false
+
+      # Jira Plugin
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-jira
+        disabled: false
+
+      # ArgoCD Backend
+      - package: ./dynamic-plugins/dist/roadiehq-backstage-plugin-argo-cd-backend-dynamic
+        disabled: false
+      # ArgoCD Frontend (Red Hat)
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-redhat-argocd
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              backstage-community.plugin-redhat-argocd:
+                mountPoints:
+                  - mountPoint: entity.page.overview/cards
+                    importName: ArgocdDeploymentSummary
+                    config:
+                      layout:
+                        gridColumnEnd:
+                          lg: span 8
+                          xs: span 12
+                      if:
+                        allOf:
+                          - isArgocdConfigured
+                  - mountPoint: entity.page.cd/cards
+                    importName: ArgocdDeploymentLifecycle
+                    config:
+                      layout:
+                        gridColumn: 1 / -1
+                      if:
+                        allOf:
+                          - isArgocdConfigured
+
+      # Topology Plugin
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+        disabled: false
+
+      # Tekton Plugin
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-tekton
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              backstage-community.plugin-tekton:
+                mountPoints:
+                  - mountPoint: entity.page.ci/cards
+                    importName: TektonCI
+                    config:
+                      layout:
+                        gridColumn: 1 / -1
+                      if:
+                        allOf:
+                          - isTektonCIAvailable
+
+      # Kubernetes Frontend
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+        disabled: false
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              backstage.plugin-kubernetes:
+                mountPoints:
+                  - mountPoint: entity.page.kubernetes/cards
+                    importName: EntityKubernetesContent
+                    config:
+                      layout:
+                        gridColumn: 1 / -1
+                      if:
+                        anyOf:
+                          - hasAnnotation: backstage.io/kubernetes-id
+                          - hasAnnotation: backstage.io/kubernetes-namespace
+
+      # Kubernetes Backend
+      - package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
+        disabled: false
+
+      # Scaffolder Kubernetes Module
+      - package: ./dynamic-plugins/dist/backstage-community-plugin-scaffolder-backend-module-kubernetes-dynamic
+        disabled: true
+
+      # Scaffolder GitHub Module
+      - package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+        disabled: false
+
+      # Scaffolder ArgoCD Module
+      - package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-argocd-dynamic
+        disabled: false
+

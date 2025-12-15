@@ -1,0 +1,107 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: app-config-rhdh
+  namespace: ${RHDH_NAMESPACE}
+data:
+  app-config.yaml: |
+    app:
+      title: Red Hat Developer Hub
+      baseUrl: https://backstage-demo-${RHDH_NAMESPACE}.${CLUSTER_DOMAIN}
+
+    backend:
+      auth:
+        keys:
+          - secret: ${BACKEND_SECRET}
+      baseUrl: https://backstage-demo-${RHDH_NAMESPACE}.${CLUSTER_DOMAIN}
+      cors:
+        origin: https://backstage-demo-${RHDH_NAMESPACE}.${CLUSTER_DOMAIN}
+
+    # GitHub App Authentication
+    auth:
+      environment: production
+      providers:
+        github:
+          production:
+            clientId: ${GITHUB_APP_CLIENT_ID}
+            clientSecret: ${GITHUB_APP_CLIENT_SECRET}
+         
+    signInPage: github
+
+    # GitHub App Integration
+    integrations:
+      github:
+        - host: github.com
+          apps:
+            - appId: ${GITHUB_APP_ID}
+              webhookUrl: ${GITHUB_APP_WEBHOOK_URL}
+              clientId: ${GITHUB_APP_CLIENT_ID}
+              clientSecret: ${GITHUB_APP_CLIENT_SECRET}
+              webhookSecret: ${GITHUB_APP_WEBHOOK_SECRET}
+              privateKey: |
+                ${GITHUB_APP_PRIVATE_KEY}
+
+    # Catalog configuration
+    catalog:
+      rules:
+        - allow: [Component, System, API, Resource, Location, Template, Group, User]
+      providers:
+        githubOrg:
+          id: production
+          githubUrl: https://github.com
+          orgs:
+            - ${GITHUB_ORG}
+          schedule:
+            initialDelay: { seconds: 15 }
+            frequency:
+              minutes: 30
+            timeout:
+              minutes: 3
+      locations:
+        # Register the demo template
+        - type: url
+          target: https://github.com/${GITHUB_ORG}/demo-templates/blob/main/template.yaml
+          rules:
+            - allow: [Template]
+
+    # Kubernetes plugin configuration
+    kubernetes:
+      serviceLocatorMethod:
+        type: multiTenant
+      clusterLocatorMethods:
+        - type: config
+          clusters:
+            - url: https://kubernetes.default.svc
+              name: local
+              authProvider: serviceAccount
+              skipTLSVerify: true
+              skipMetricsLookup: true
+
+    # ArgoCD plugin configuration
+    argocd:
+      username: ${ARGOCD_USERNAME}
+      password: ${ARGOCD_PASSWORD}
+      appLocatorMethods:
+        - type: config
+          instances:
+            - name: main
+              url: https://openshift-gitops-server-${ARGOCD_NAMESPACE}.${CLUSTER_DOMAIN}
+              username: ${ARGOCD_USERNAME}
+              password: ${ARGOCD_PASSWORD}
+
+    # TechDocs configuration
+    techdocs:
+      builder: local
+      generator:
+        runIn: local
+      publisher:
+        type: local
+
+    # Enabled features
+    enabled:
+      github: true
+      githubOrg: true
+      kubernetes: true
+      argocd: true
+      techdocs: true
+

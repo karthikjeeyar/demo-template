@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.app.name }}-create-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-weight: "10"
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    spec:
+      serviceAccountName: pipeline
+      restartPolicy: Never
+      containers:
+      - name: create-webhook
+        image: quay.io/openshift/origin-cli:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          cat <<EOF | oc create -f -
+          apiVersion: tekton.dev/v1
+          kind: TaskRun
+          metadata:
+            generateName: webhook-taskrun-
+            namespace: {{ .Release.Namespace }}
+          spec:
+            params:
+              - name: repo
+                value: {{ .Values.git.repo }}
+            taskRef:
+              resolver: cluster
+              params:
+              - name: namespace
+                value: {{ .Release.Namespace }}
+              - name: kind
+                value: task
+              - name: name
+                value: create-github-webhook
+          EOF
+          echo "Webhook created successfully."

@@ -1,0 +1,102 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: {{ .Values.app.name }}-build
+  namespace: {{ .Release.Namespace }}
+  labels:
+    type: pipeline
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Values.app.name }}
+    app.kubernetes.io/component: pipeline
+spec:
+  params:
+    - name: git-url
+      description: Git repository URL
+      type: string
+      default: '{{ .Values.git.repo }}'
+    - name: git-revision
+      description: Git revision to build
+      type: string
+      default: '{{ .Values.git.branch }}'
+    - name: IMAGE
+      type: string
+    - name: IMAGE_TAG
+      type: string
+    - default: .
+      name: PATH_CONTEXT
+      type: string
+    - default: 20-minimal-ubi8
+      name: VERSION
+      type: string
+  # Pipeline results - output image details from build task
+  results:
+    - name: IMAGE_URL
+      description: Full image URL (from build task)
+      value: $(tasks.build-and-push.results.IMAGE_URL)
+    - name: IMAGE_DIGEST
+      description: Image SHA256 digest (from build task)
+      value: $(tasks.build-and-push.results.IMAGE_DIGEST)
+  tasks:
+    - name: fetch-repository
+      params:
+        - name: URL
+          value: $(params.git-url)
+        - name: REVISION
+          value: $(params.git-revision)
+      taskRef:
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
+        resolver: cluster
+      workspaces:
+        - name: output
+          workspace: shared-data
+    - name: build-and-push
+      params:
+        - name: IMAGE
+          value: '$(params.IMAGE):$(params.IMAGE_TAG)'
+        - name: TLS_VERIFY
+          value: 'false'
+        - name: CONTEXT
+          value: $(params.PATH_CONTEXT)
+        - name: VERSION
+          value: $(params.VERSION)
+      runAfter:
+        - fetch-repository
+      taskRef:
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: s2i-nodejs
+          - name: namespace
+            value: openshift-pipelines
+        resolver: cluster
+      workspaces:
+        - name: source
+          workspace: shared-data
+    # Update GitOps and sync ArgoCD
+    - name: update-and-sync
+      params:
+        - name: appName
+          value: {{ .Values.app.name }}-dev
+        - name: image-tag
+          value: $(params.IMAGE_TAG)
+        - name: image-digest
+          value: $(tasks.build-and-push.results.IMAGE_DIGEST)
+        - name: environment
+          value: dev
+      runAfter:
+        - build-and-push
+      taskRef:
+        kind: Task
+        name: {{ .Values.app.name }}-argocd-task
+
+  workspaces:
+    - name: shared-data

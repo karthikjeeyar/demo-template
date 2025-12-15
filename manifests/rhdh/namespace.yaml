@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${RHDH_NAMESPACE}
+  labels:
+    app.kubernetes.io/name: rhdh
+    app.kubernetes.io/component: backstage
+

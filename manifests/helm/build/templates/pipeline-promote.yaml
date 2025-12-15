@@ -1,0 +1,83 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: {{ .Values.app.name }}-promote
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+    app.kubernetes.io/part-of: {{ .Values.app.name }}
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Values.app.name }}
+    app.kubernetes.io/component: pipeline
+spec:
+  params:
+    - name: SOURCE_IMAGE_URL
+      description: Source image URL with tag (docker://registry/org/image:tag)
+      type: string
+    - name: DESTINATION_IMAGE_URL
+      description: Destination image URL with tag (docker://registry/org/image:tag)
+      type: string
+    - name: appName
+      description: ArgoCD application name to sync
+      type: string
+    - name: image-tag
+      description: Image tag for ArgoCD deployment
+      type: string
+    - name: environment
+      description: Target environment (staging or prod)
+      type: string
+      default: staging
+
+  # Pipeline results - using skopeo-copy task outputs
+  results:
+    - name: SOURCE_DIGEST
+      description: Source image SHA256 digest
+      value: $(tasks.skopeo-copy.results.SOURCE_DIGEST)
+    - name: DESTINATION_DIGEST
+      description: Destination image SHA256 digest
+      value: $(tasks.skopeo-copy.results.DESTINATION_DIGEST)
+
+  workspaces:
+    - name: image-url
+      description: Workspace for skopeo operations
+
+  tasks:
+    - name: skopeo-copy
+      params:
+        - name: SOURCE_IMAGE_URL
+          value: $(params.SOURCE_IMAGE_URL)
+        - name: DESTINATION_IMAGE_URL
+          value: $(params.DESTINATION_IMAGE_URL)
+        - name: SRC_TLS_VERIFY
+          value: 'false'
+        - name: DEST_TLS_VERIFY
+          value: 'false'
+      taskRef:
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: skopeo-copy
+          - name: namespace
+            value: openshift-pipelines
+        resolver: cluster
+      workspaces:
+        - name: images_url
+          workspace: image-url
+
+    - name: update-and-sync
+      params:
+        - name: appName
+          value: $(params.appName)
+        - name: image-tag
+          value: $(params.image-tag)
+        - name: image-digest
+          value: $(tasks.skopeo-copy.results.DESTINATION_DIGEST)
+        - name: environment
+          value: $(params.environment)
+      runAfter:
+        - skopeo-copy
+      taskRef:
+        kind: Task
+        name: {{ .Values.app.name }}-argocd-task

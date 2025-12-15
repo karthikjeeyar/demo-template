@@ -1,0 +1,15 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: {{ .Values.app.name }}-tb-staging
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+spec:
+  params:
+    - name: source-image-tag
+      value: latest
+    - name: destination-image-tag
+      value: $(extensions.tag_name)
+    - name: environment
+      value: staging

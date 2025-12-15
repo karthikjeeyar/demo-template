@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Platform Demo</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div class="brand">
+          <span>Developer Hub</span>
+        </div>
+        <div class="status">
+          <span id="envBadge" class="env-badge">DEV</span>
+          <span id="statusDot" class="status-dot"></span>
+        </div>
+      </header>
+
+      <main>
+        <h1>Platform Transformation Demo</h1>
+        <p class="subtitle">
+          Built with Red Hat Developer Hub software templates
+        </p>
+
+        <section class="features">
+          <h2>Platform Capabilities</h2>
+          <div class="cards">
+            <div class="card">
+              <h3>Centralized Software Catalog</h3>
+              <p>
+                Centralize all software components in a single catalog
+              </p>
+            </div>
+
+            <div class="card">
+              <h3>Tech Docs</h3>
+              <p>Centralize all technical documentation in a single location</p>
+            </div>
+
+            <div class="card">
+              <h3>Plug-ins Ecosystem</h3>
+              <p>Extend the platform with custom plug-ins</p>
+            </div>
+
+            <div class="card">
+              <h3>Software Templates</h3>
+              <p>Self-service scaffolding for new services with built-in best practices</p>
+            </div>
+
+          <div class="card">
+            <h3>Search & Discovery</h3>
+            <p>Search and discover software components and documentation</p>
+          </div>
+        </div>
+        </section>
+
+        <section class="info">
+          <p>
+            <strong>How it works:</strong> This app was scaffolded using a
+            Backstage template. CI/CD pipelines and GitOps configs were
+            generated automatically.
+          </p>
+        </section>
+
+        <section class="flow">
+          <span class="step">Code</span> → 
+          <span class="step">Build</span> → 
+          <span class="step" data-env="dev">Dev</span> → 
+          <span class="step" data-env="staging">Staging</span> →
+          <span class="step" data-env="prod">Prod</span>
+        </section>
+      </main>
+
+      <footer>Powered by <strong>Red Hat Developer Hub</strong></footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

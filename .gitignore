@@ -1,0 +1,10 @@
+.env
+.DS_Store
+.vscode
+**/node_modules
+**/*.bak
+
+# Sensitive files
+*.pem
+github-app-private-key.pem
+secrets.yaml

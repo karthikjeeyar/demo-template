@@ -1,0 +1,45 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${{ values.component_id }}-staging
+  namespace: ${{ values.argocd_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  source:
+    repoURL: ${{ values.destination }}
+    targetRevision: HEAD
+    path: ./helm/app
+    helm:
+      valueFiles:
+        - Values.yaml
+        - Values-staging.yaml
+      # values: |
+      #   # Override namespace for staging
+      #   app:
+      #     namespace: ${{ values.component_id }}-staging
+      #   image:
+      #     tag: staging
+      #   # Add staging-specific overrides here
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${{ values.component_id }}-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true
+    retry:
+      limit: -1
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
+

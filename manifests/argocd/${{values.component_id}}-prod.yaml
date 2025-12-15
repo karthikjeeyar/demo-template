@@ -1,0 +1,39 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${{ values.component_id }}-prod
+  namespace: ${{ values.argocd_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    # Production requires manual sync for demo purposes
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  project: default
+  source:
+    repoURL: ${{ values.destination }}
+    targetRevision: HEAD
+    path: ./helm/app
+    helm:
+      valueFiles:
+        - Values.yaml
+        - Values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${{ values.component_id }}-prod
+  # IMPORTANT: No automated sync for production - requires manual approval
+  # This demonstrates the production gate in the demo
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true
+    retry:
+      limit: -1
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
+

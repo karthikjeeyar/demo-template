@@ -1,0 +1,192 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: {{ .Values.app.name }}-argocd-task
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+    app.kubernetes.io/part-of: {{ .Values.app.name }}
+spec:
+  params:
+    - name: appName
+      description: ArgoCD application name (e.g., myapp-staging or myapp-prod)
+      type: string
+    - name: image-tag
+      description: The image tag to update in the Values file
+      type: string
+    - name: image-digest
+      description: The image SHA256 digest (optional, for OpenShift cross-namespace)
+      type: string
+      default: ""
+    - name: environment
+      description: Target environment (dev, staging, or prod)
+      type: string
+      default: staging
+  steps:
+    - name: update-gitops
+      image: 'alpine/git:latest'
+      env:
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.sealedSecrets.git.secretName }}
+              key: token
+        - name: GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.sealedSecrets.git.secretName }}
+              key: username
+        - name: IMAGE_HOST
+          value: "{{ .Values.image.host }}"
+      script: |
+        #!/bin/sh
+        set -e
+        
+        echo "=== Configuring Git ==="
+        git config --global user.email "tekton@backstage.io"
+        git config --global user.name "Tekton Pipeline"
+        
+        echo "=== Cloning GitOps Repository ==="
+        git clone https://${GIT_USERNAME}:${GIT_TOKEN}@{{ .Values.git.host }}/{{ .Values.git.org }}/{{ .Values.app.name }}-gitops.git
+        cd {{ .Values.app.name }}-gitops
+        
+        # Determine values file based on environment
+        ENVIRON=$(params.environment)
+        case "$ENVIRON" in
+          dev)
+            FILE="Values.yaml"
+            ;;
+          staging)
+            FILE="Values-staging.yaml"
+            ;;
+          prod)
+            FILE="Values-prod.yaml"
+            ;;
+          *)
+            echo "Unknown environment: $ENVIRON"
+            exit 1
+            ;;
+        esac
+        
+        IMAGE_TAG="$(params.image-tag)"
+        IMAGE_DIGEST="$(params.image-digest)"
+        
+        # Auto-detect: Use digest for OpenShift internal registry (all environments)
+        # OpenShift ImageStreams work better with immutable digest references
+        SHOULD_USE_DIGEST="false"
+        if echo "$IMAGE_HOST" | grep -q "openshift-image-registry"; then
+          if [ -n "$IMAGE_DIGEST" ]; then
+            SHOULD_USE_DIGEST="true"
+            echo "📦 OpenShift internal registry detected - using SHA digest"
+          fi
+        fi
+        
+        echo "=== Configuration ==="
+        echo "Registry: $IMAGE_HOST"
+        echo "Environment: $ENVIRON"
+        echo "Image Tag: $IMAGE_TAG"
+        if [ -n "$IMAGE_DIGEST" ]; then
+          echo "Image Digest: $IMAGE_DIGEST"
+        fi
+        echo "Use Digest: $SHOULD_USE_DIGEST"
+        echo ""
+        
+        if [ "$SHOULD_USE_DIGEST" = "true" ]; then
+          echo "=== Updating $FILE with image digest: $IMAGE_DIGEST ==="
+          # For OpenShift cross-namespace pulls, use digest format
+          # Update both tag (for reference) and add digest
+          sed -i "s/^  tag:.*/  tag: \"$IMAGE_TAG\"/" helm/app/$FILE
+          
+          # Check if digest line exists, update or add
+          if grep -q "^  digest:" helm/app/$FILE; then
+            sed -i "s/^  digest:.*/  digest: \"$IMAGE_DIGEST\"/" helm/app/$FILE
+          else
+            # Add digest after tag line
+            sed -i "/^  tag:/a\\  digest: \"$IMAGE_DIGEST\"" helm/app/$FILE
+          fi
+          
+          COMMIT_MSG="🚀 Deploy to $ENVIRON: $IMAGE_TAG ($IMAGE_DIGEST)"
+        else
+          echo "=== Updating $FILE with image tag: $IMAGE_TAG ==="
+          # For Quay/external registries, just use tag
+          sed -i "s/^  tag:.*/  tag: \"$IMAGE_TAG\"/" helm/app/$FILE
+          
+          # Remove digest if it exists (not needed for external registries)
+          sed -i '/^  digest:/d' helm/app/$FILE
+          
+          COMMIT_MSG="🚀 Deploy to $ENVIRON: image tag $IMAGE_TAG"
+        fi
+        
+        echo "=== Updated Values File ==="
+        cat helm/app/$FILE
+        
+        echo "=== Committing Changes ==="
+        git add .
+        git commit -m "$COMMIT_MSG" || echo "No changes to commit"
+        git push
+        
+        echo "=== GitOps Update Complete ==="
+        echo ""
+        echo "Image Reference:"
+        echo "  Tag: $IMAGE_TAG"
+        if [ -n "$IMAGE_DIGEST" ]; then
+          echo "  Digest: $IMAGE_DIGEST"
+        fi
+
+    - name: argocd-sync
+      image: 'quay.io/redhat-gpte/argocd-cli:v2.8.4'
+      env:
+        - name: ARGOCD_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.sealedSecrets.argocd.secretName }}
+              key: password
+        - name: ARGOCD_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.sealedSecrets.argocd.secretName }}
+              key: username
+              optional: true
+      script: |
+        #!/bin/sh
+        set -e
+        
+        ENVIRON=$(params.environment)
+        ARGOCD_USER=${ARGOCD_USERNAME:-admin}
+        ARGOCD_SERVER="{{ .Values.argocd.server }}"
+        
+        echo "=== Logging into ArgoCD ==="
+        argocd login --grpc-web \
+          --username $ARGOCD_USER \
+          --password $ARGOCD_PASSWORD \
+          $ARGOCD_SERVER
+        
+        # For PROD: Skip auto-sync, require manual approval (demo gate)
+        if [ "$ENVIRON" = "prod" ]; then
+          echo "=============================================="
+          echo "🚨 PRODUCTION DEPLOYMENT REQUIRES MANUAL APPROVAL"
+          echo "=============================================="
+          echo ""
+          echo "GitOps repository has been updated."
+          echo "  Image Tag: $(params.image-tag)"
+          if [ -n "$(params.image-digest)" ]; then
+            echo "  Digest: $(params.image-digest)"
+          fi
+          echo ""
+          echo "To deploy to production, manually sync in ArgoCD:"
+          echo "  argocd app sync $(params.appName)"
+          echo ""
+          echo "Or use the ArgoCD UI to approve the deployment."
+          echo ""
+          argocd app get $(params.appName) || echo "Application may not exist yet"
+          exit 0
+        fi
+        
+        echo "=== Syncing Application: $(params.appName) ==="
+        argocd app sync $(params.appName) --prune || echo "Sync initiated, ArgoCD will reconcile"
+        
+        echo "=== Waiting for Sync to Complete ==="
+        argocd app wait $(params.appName) --health --timeout 300 || echo "Timeout waiting for health, check ArgoCD UI"
+        
+        echo "=== Deployment Status ==="
+        argocd app get $(params.appName) || echo "Could not get app status"

@@ -1,0 +1,63 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: {{ .Values.app.name }}-tt-build
+  namespace: {{ .Release.Namespace }}
+  labels:
+    type: trigger-template
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+spec:
+  params:
+    - name: git-revision
+      description: The git revision
+    - name: git-commit-message
+      description: The commit message
+    - name: git-repo-url
+      description: The repository URL
+    - name: git-repo-name
+      description: The repository name
+    - name: pusher-name
+      description: Who pushed the commit
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: {{ .Values.app.name }}-build-
+        namespace: {{ .Release.Namespace }}
+        labels:
+          backstage.io/kubernetes-id: {{ .Values.app.name }}
+          app.kubernetes.io/instance: {{ .Values.app.name }}
+          app.kubernetes.io/name: {{ .Values.app.name }}
+          tekton.dev/pipeline: {{ .Values.app.name }}-build
+          pipeline.openshift.io/runtime: nodejs
+        annotations:
+          pipeline.openshift.io/started-by: $(tt.params.pusher-name)
+      spec:
+        params:
+          - name: git-url
+            value: '{{ .Values.git.repo }}'
+          - name: git-revision
+            value: $(tt.params.git-revision)
+          - name: IMAGE
+            value: '{{ .Values.image.host }}/{{ .Values.image.organization }}/{{ .Values.image.name }}'
+          - name: IMAGE_TAG
+            # Use short git SHA for unique, traceable image tags
+            value: $(tt.params.git-revision)
+          - name: PATH_CONTEXT
+            value: .
+        pipelineRef:
+          name: {{ .Values.app.name }}-build
+        serviceAccountName: pipeline
+        timeout: 1h0m0s
+        workspaces:
+          - name: shared-data
+            volumeClaimTemplate:
+              metadata:
+                labels:
+                  tekton.dev/pipeline: {{ .Values.app.name }}-build
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi

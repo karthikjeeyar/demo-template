@@ -1,0 +1,94 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{values.component_id}}
+  description: ${{values.description}}
+  annotations:
+    # TechDocs - Documentation as code
+    backstage.io/techdocs-ref: dir:.
+    # GitHub - PRs, Issues, Actions
+    github.com/project-slug: ${{values.repository_owner}}/${{values.component_id}}
+    # ArgoCD - Deployment status
+    # argocd/app-name: ${{values.component_id}}-dev
+    argocd/app-selector: argocd.argoproj.io/instance=${{values.component_id}}-bootstrap
+    # Kubernetes Topology - Pods, logs
+
+    backstage.io/kubernetes-id: ${{values.component_id}}
+    # backstage.io/kubernetes-namespace: ${{values.component_id}}-dev
+    # Tekton - Pipeline runs
+    tekton.dev/pipeline: ${{values.component_id}}-build
+    tekton.dev/cicd: 'true'
+    # Jira - Issues (if enabled)
+    jira/project-key: DEMO
+    # Quay - Image security (if using Quay)
+    quay.io/repository-slug: ${{values.image_organization}}/${{values.component_id}}
+  labels:
+    app.kubernetes.io/name: ${{values.component_id}}
+    app.kubernetes.io/part-of: ${{values.component_id}}-system
+  tags:
+    - nodejs
+    - tekton
+    - argocd
+    - gitops
+  links:
+    - url: https://github.com/${{values.repository_owner}}/${{values.component_id}}
+      title: Source Code
+      icon: github
+    - url: https://github.com/${{values.repository_owner}}/${{values.component_id}}-gitops
+      title: GitOps Repository
+      icon: github
+    - url: https://openshift-gitops-server-${{values.argocd_namespace}}.${{values.cluster_domain}}/applications/${{values.component_id}}-dev
+      title: ArgoCD - DEV
+      icon: dashboard
+    - url: https://openshift-gitops-server-${{values.argocd_namespace}}.${{values.cluster_domain}}/applications/${{values.component_id}}-staging
+      title: ArgoCD - Staging
+      icon: dashboard
+    - url: https://openshift-gitops-server-${{values.argocd_namespace}}.${{values.cluster_domain}}/applications/${{values.component_id}}-prod
+      title: ArgoCD - PROD
+      icon: dashboard
+    - url: https://console-openshift-console.${{values.cluster_domain}}/k8s/ns/${{values.component_id}}-dev/deployments
+      title: OpenShift Console - DEV
+      icon: web
+    - url: https://console-openshift-console.${{values.cluster_domain}}/k8s/ns/${{values.component_id}}-prod/deployments
+      title: OpenShift Console - PROD
+      icon: web
+    - url: https://${{values.image_host}}/${{values.image_organization}}/${{values.component_id}}
+      title: Container Image
+      icon: docker
+spec:
+  type: service
+  lifecycle: production
+  owner: ${{values.owner}}
+  system: ${{values.component_id}}-system
+  providesApis:
+    - ${{values.component_id}}-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{values.component_id}}-system
+  description: System for ${{values.component_id}} application
+  tags:
+    - nodejs
+spec:
+  owner: ${{values.owner}}
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: ${{values.component_id}}-api
+  description: REST API for ${{values.component_id}}
+  tags:
+    - rest
+    - openapi
+  links:
+    - url: https://${{values.component_id}}-${{values.component_id}}-dev.${{values.cluster_domain}}/health
+      title: Health Endpoint (DEV)
+      icon: web
+spec:
+  type: openapi
+  lifecycle: production
+  owner: ${{values.owner}}
+  system: ${{values.component_id}}-system
+  definition:
+    $text: ./api/openapi.yaml

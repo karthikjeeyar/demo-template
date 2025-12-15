@@ -1,0 +1,76 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: {{ .Values.app.name }}-el
+  namespace: {{ .Release.Namespace }}
+  labels:
+    type: event-listener
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+spec:
+  namespaceSelector: {}
+  resources: {}
+  serviceAccountName: pipeline
+  triggers:
+    # BUILD TRIGGER: Push to main/master branch → DEV
+    - name: build-on-push
+      bindings:
+        - kind: ClusterTriggerBinding
+          ref: github-push
+      interceptors:
+        - ref:
+            kind: ClusterInterceptor
+            name: github
+        - ref:
+            kind: ClusterInterceptor
+            name: cel
+          params:
+            - name: filter
+              value: >-
+                body.ref in ['refs/heads/main', 'refs/heads/master'] && 
+                size(body.commits) > 0
+      template:
+        ref: {{ .Values.app.name }}-tt-build
+
+    # PROMOTE TO STAGING: Tag staging-* (e.g., staging-v1)
+    - name: promote-to-staging
+      bindings:
+        - kind: TriggerBinding
+          ref: {{ .Values.app.name }}-tb-staging
+      interceptors:
+        - ref:
+            kind: ClusterInterceptor
+            name: github
+        - ref:
+            kind: ClusterInterceptor
+            name: cel
+          params:
+            - name: filter
+              value: body.ref.startsWith('refs/tags/staging-')
+            - name: overlays
+              value:
+                - expression: 'body.ref.split(''/'')[2]'
+                  key: tag_name
+      template:
+        ref: {{ .Values.app.name }}-tt-promote
+
+    # PROMOTE TO PROD: Semantic version tag (v1.0.0)
+    - name: promote-to-prod
+      bindings:
+        - kind: TriggerBinding
+          ref: {{ .Values.app.name }}-tb-prod
+      interceptors:
+        - ref:
+            kind: ClusterInterceptor
+            name: github
+        - ref:
+            kind: ClusterInterceptor
+            name: cel
+          params:
+            - name: filter
+              value: body.ref.matches('^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$')
+            - name: overlays
+              value:
+                - expression: 'body.ref.split(''/'')[2]'
+                  key: tag_name
+      template:
+        ref: {{ .Values.app.name }}-tt-promote

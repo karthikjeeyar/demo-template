@@ -1,0 +1,50 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: {{ .Values.app.name }}-tt-promote
+  namespace: {{ .Release.Namespace }}
+  labels:
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
+spec:
+  params:
+    - name: source-image-tag
+      description: The source image tag to promote from (e.g., latest)
+    - name: destination-image-tag
+      description: The destination image tag (e.g., staging-v1 or v1.0.0)
+    - name: environment
+      description: Target environment (staging or prod)
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1
+      kind: PipelineRun
+      metadata:
+        generateName: {{ .Values.app.name }}-promote-
+        namespace: {{ .Release.Namespace }}
+        labels:
+          backstage.io/kubernetes-id: {{ .Values.app.name }}
+          tekton.dev/pipeline: {{ .Values.app.name }}-promote
+          app.kubernetes.io/part-of: {{ .Values.app.name }}
+          app.kubernetes.io/name: {{ .Values.app.name }}
+          app.kubernetes.io/instance: {{ .Values.app.name }}
+          app.kubernetes.io/component: pipelineRun
+      spec:
+        params:
+          # Image parameters for skopeo-copy
+          - name: SOURCE_IMAGE_URL
+            value: 'docker://{{ .Values.image.host }}/{{ .Values.image.organization }}/{{ .Values.image.name }}:$(tt.params.source-image-tag)'
+          - name: DESTINATION_IMAGE_URL
+            value: 'docker://{{ .Values.image.host }}/{{ .Values.image.organization }}/{{ .Values.image.name }}:$(tt.params.destination-image-tag)'
+          # ArgoCD parameters
+          - name: appName
+            value: {{ .Values.app.name }}-$(tt.params.environment)
+          - name: image-tag
+            value: $(tt.params.destination-image-tag)
+          - name: environment
+            value: $(tt.params.environment)
+        pipelineRef:
+          name: {{ .Values.app.name }}-promote
+        serviceAccountName: pipeline
+        timeout: 30m0s
+        workspaces:
+          - name: image-url
+            emptyDir: {}

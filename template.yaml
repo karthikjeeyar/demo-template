@@ -1,0 +1,235 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: nodejs-template
+  title: Node.js Template
+  description: Create a simple Node.js application with full CI/CD pipeline
+  tags:
+    - recommended
+    - nodejs
+    - tekton
+    - argocd
+spec:
+  owner: rhdh
+  type: service
+  parameters:
+    # Step 1: Application Information
+    - title: Provide Application Information
+      required:
+        - component_id
+        - description
+        - owner
+      properties:
+        component_id:
+          title: Application Name
+          type: string
+          description: Unique name of the component (used for namespaces, repos, etc.)
+          default: my-nodejs-app
+          ui:field: EntityNamePicker
+          maxLength: 14
+        description:
+          title: Description
+          type: string
+          description: Help others understand what this application does
+          default: A Node.js application
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: [Group, User]
+
+    # Step 2: Git Repository Configuration
+    - title: Git Repository Configuration
+      required:
+        - repository_host
+        - repository_owner
+      properties:
+        repository_host:
+          title: Repository Host
+          type: string
+          description: Git repository host
+          default: github.com
+          enum:
+            - github.com
+        repository_owner:
+          title: Repository Owner
+          type: string
+          description: The owner/organization of the repository
+          default: rhdh-dev-demo
+          enum:
+            - rhdh-dev-demo
+
+    # Step 3: Cluster & ArgoCD Configuration
+    - title: Cluster & ArgoCD Configuration
+      required:
+        - cluster_domain
+      properties:
+        cluster_domain:
+          title: Cluster Domain
+          type: string
+          description: OpenShift cluster domain (e.g., apps.mycluster.example.com)
+          default: apps.rosa.qasde-sw3zj-y64.jorr.p3.openshiftapps.com
+        argocd_namespace:
+          title: ArgoCD Namespace
+          type: string
+          description: Namespace where ArgoCD is installed
+          default: openshift-gitops
+
+    # Step 4: Image Registry Configuration
+    - title: Image Registry Configuration
+      required:
+        - image_registry
+      properties:
+        image_registry:
+          title: Image Registry
+          type: string
+          enum:
+            - Openshift
+            - Quay
+      dependencies:
+        image_registry:
+          oneOf:
+            - properties:
+                image_registry:
+                  enum:
+                    - Openshift
+                # OpenShift internal registry - uses sensible defaults:
+                # - Host: image-registry.openshift-image-registry.svc:5000
+                # - Namespace: <component>-dev
+                # - Image name: <component>
+            - properties:
+                image_registry:
+                  enum:
+                    - Quay
+                image_host:
+                  title: Image Host
+                  type: string
+                  description: Quay registry host
+                  default: quay.io
+                image_organization:
+                  title: Organization
+                  type: string
+                  description: Name of the Quay Organization
+                image_name:
+                  title: Image Name
+                  type: string
+                  description: Name of the image
+
+  steps:
+    # Step 1: Generate source code from skeleton
+    - id: template-source
+      name: Generating Source Code
+      action: fetch:template
+      input:
+        url: ./skeleton
+        copyWithoutTemplating:
+          - node_modules/**
+        values:
+          # Application
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          # Git
+          repository_owner: ${{ parameters.repository_owner }}
+          repository_host: ${{ parameters.repository_host }}
+          # Cluster & ArgoCD
+          cluster_domain: ${{ parameters.cluster_domain }}
+          argocd_namespace: ${{ parameters.argocd_namespace }}
+          # Image Registry
+          image_host: ${{ parameters.image_host | default('image-registry.openshift-image-registry.svc:5000') }}
+          image_organization: ${{ parameters.image_organization | default(parameters.component_id + '-dev') }}
+        targetPath: ./source-code
+
+    # Step 2: Publish source code repository to GitHub
+    - id: publish-source
+      name: Publishing Source Repository
+      action: publish:github
+      input:
+        repoUrl: "${{ parameters.repository_host }}?owner=${{ parameters.repository_owner }}&repo=${{ parameters.component_id }}"
+        description: ${{ parameters.description }}
+        sourcePath: ./source-code
+        repoVisibility: public
+
+    # Step 3: Register component in catalog
+    - id: register
+      name: Register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-source'].output.repoContentsUrl }}
+        catalogInfoPath: "/catalog-info.yaml"
+
+    # Step 4: Generate GitOps deployment resources
+    - id: template-gitops-deployment
+      name: Generating Deployment Resources
+      action: fetch:template
+      input:
+        url: ./manifests
+        copyWithoutTemplating: []
+        values:
+          # Application
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          
+          # Git
+          repository_host: ${{ parameters.repository_host }}
+          repository_owner: ${{ parameters.repository_owner }}
+          git_owner: ${{ parameters.repository_owner }}
+          source_repository: https://${{ parameters.repository_host }}/${{ parameters.repository_owner }}/${{ parameters.component_id }}.git
+          destination: https://${{ parameters.repository_host }}/${{ parameters.repository_owner }}/${{ parameters.component_id }}-gitops.git
+          
+          # Cluster & ArgoCD
+          cluster_domain: ${{ parameters.cluster_domain }}
+          argocd_namespace: ${{ parameters.argocd_namespace }}
+          
+          # Image Registry (defaults for OpenShift internal registry)
+          image_host: ${{ parameters.image_host | default('image-registry.openshift-image-registry.svc:5000') }}
+          image_organization: ${{ parameters.image_organization | default(parameters.component_id + '-dev') }}
+          image_name: ${{ parameters.image_name | default(parameters.component_id) }}
+        targetPath: ./tenant-gitops
+
+    # Step 5: Publish GitOps repository to GitHub
+    - id: publish-gitops
+      name: Publishing GitOps Repository
+      action: publish:github
+      input:
+        repoUrl: "${{ parameters.repository_host }}?owner=${{ parameters.repository_owner }}&repo=${{ parameters.component_id }}-gitops"
+        description: GitOps resources for ${{ parameters.component_id }}
+        sourcePath: ./tenant-gitops
+        repoVisibility: public
+
+    # Step 6: Create ArgoCD resources
+    - id: create-argocd-resources
+      name: Create ArgoCD Resources
+      action: argocd:create-resources
+      input:
+        appName: ${{ parameters.component_id }}-bootstrap
+        argoInstance: main
+        namespace: ${{ parameters.argocd_namespace }}
+        repoUrl: "https://${{ parameters.repository_host }}/${{ parameters.repository_owner }}/${{ parameters.component_id }}-gitops"
+        path: 'argocd/'
+
+  # OUTPUT: Links to created resources
+  output:
+    links:
+      - title: 💻 Source Repository
+        url: https://${{ parameters.repository_host }}/${{ parameters.repository_owner }}/${{ parameters.component_id }}
+        icon: github
+      - title: 📦 GitOps Repository
+        url: https://${{ parameters.repository_host }}/${{ parameters.repository_owner }}/${{ parameters.component_id }}-gitops
+        icon: github
+      - title: 🚀 ArgoCD - DEV
+        url: https://openshift-gitops-server-${{ parameters.argocd_namespace }}.${{ parameters.cluster_domain }}/applications/${{ parameters.component_id }}-dev
+        icon: web
+      - title: 🎭 ArgoCD - Staging
+        url: https://openshift-gitops-server-${{ parameters.argocd_namespace }}.${{ parameters.cluster_domain }}/applications/${{ parameters.component_id }}-staging
+        icon: web
+      - title: 🏭 ArgoCD - Prod
+        url: https://openshift-gitops-server-${{ parameters.argocd_namespace }}.${{ parameters.cluster_domain }}/applications/${{ parameters.component_id }}-prod
+        icon: web
+      - title: 📦 Catalog Component
+        entityRef: ${{ steps.register.output.entityRef }}
+        icon: catalog

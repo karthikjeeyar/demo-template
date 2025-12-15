@@ -1,0 +1,93 @@
+{{- if or .Values.sealedSecrets.git.enabled .Values.sealedSecrets.registry.enabled }}
+---
+# ServiceAccount for the patch job with permissions to update ServiceAccounts
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.app.name }}-patch-sa
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+---
+# Role with permissions to patch ServiceAccounts and link secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.app.name }}-patch-sa-role
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+---
+# RoleBinding to grant permissions to the patch ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.app.name }}-patch-sa-rolebinding
+  namespace: {{ .Release.Namespace }}
+
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Values.app.name }}-patch-sa-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.app.name }}-patch-sa
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-sealed-secrets-manager
+rules:
+  - apiGroups:
+      - bitnami.com
+    resources:
+      - sealedsecrets
+    verbs:
+      - "*"
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - serviceaccounts
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-sealed-secrets-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-sealed-secrets-manager
+subjects:
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-application-controller
+    namespace: openshift-gitops
+
+

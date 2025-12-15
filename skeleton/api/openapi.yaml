@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: ${{values.component_id}} API
+  description: |
+    REST API for the ${{values.component_id}} application.
+    
+    This API provides health checks, readiness probes, and environment information
+    for the platform demo application.
+  version: 1.0.0
+  contact:
+    name: ${{values.owner}}
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: https://${{values.component_id}}-${{values.component_id}}-dev.${{values.cluster_domain}}
+    description: Development environment
+  - url: https://${{values.component_id}}-${{values.component_id}}-staging.${{values.cluster_domain}}
+    description: Staging environment
+  - url: https://${{values.component_id}}-${{values.component_id}}-prod.${{values.cluster_domain}}
+    description: Production environment
+
+tags:
+  - name: Health
+    description: Health and readiness endpoints
+  - name: Configuration
+    description: Application configuration endpoints
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the health status of the application. Used by Kubernetes liveness probes.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: UP
+                service: RHDH Demo Application
+                timestamp: '2024-01-15T10:30:00.000Z'
+        '500':
+          description: Application is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness check
+      description: Returns whether the application is ready to receive traffic. Used by Kubernetes readiness probes.
+      operationId: getReady
+      responses:
+        '200':
+          description: Application is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+              example:
+                status: UP
+                ready: true
+        '503':
+          description: Application is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+
+  /env:
+    get:
+      tags:
+        - Configuration
+      summary: Get environment info
+      description: Returns the current deployment environment (dev, staging, or prod).
+      operationId: getEnv
+      responses:
+        '200':
+          description: Environment information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvResponse'
+              example:
+                environment: dev
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - timestamp
+      properties:
+        status:
+          type: string
+          description: Health status
+          enum:
+            - UP
+            - DOWN
+          example: UP
+        service:
+          type: string
+          description: Service name
+          example: RHDH Demo Application
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp
+          example: '2024-01-15T10:30:00.000Z'
+
+    ReadyResponse:
+      type: object
+      required:
+        - status
+        - ready
+      properties:
+        status:
+          type: string
+          description: Readiness status
+          enum:
+            - UP
+            - DOWN
+          example: UP
+        ready:
+          type: boolean
+          description: Whether the application is ready to receive traffic
+          example: true
+
+    EnvResponse:
+      type: object
+      required:
+        - environment
+      properties:
+        environment:
+          type: string
+          description: Current deployment environment
+          enum:
+            - dev
+            - staging
+            - prod
+          example: dev
+
