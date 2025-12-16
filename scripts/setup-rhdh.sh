@@ -24,7 +24,7 @@ NC='\033[0m' # No Color
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MANIFESTS_DIR="$PROJECT_ROOT/manifests/rhdh"
+RHDH_DIR="$PROJECT_ROOT/rhdh"
 
 # Default values
 RHDH_NAMESPACE="${RHDH_NAMESPACE:-rhdh}"
@@ -304,8 +304,8 @@ setup_configmaps() {
     # Credential variables are left as ${VAR} for RHDH to resolve from secrets at runtime
     export RHDH_NAMESPACE CLUSTER_DOMAIN GITHUB_ORG ARGOCD_NAMESPACE
     
-    apply_configmap "$MANIFESTS_DIR/app-config-template.yaml" "app-config-rhdh"
-    apply_configmap "$MANIFESTS_DIR/dynamic-plugins-template.yaml" "dynamic-plugins-rhdh"
+    apply_configmap "$RHDH_DIR/app-config-template.yaml" "app-config-rhdh"
+    apply_configmap "$RHDH_DIR/dynamic-plugins-template.yaml" "dynamic-plugins-rhdh"
 }
 
 # Setup RBAC for Kubernetes plugin
@@ -388,13 +388,28 @@ EOF
     export OCP_API_URL OCP_SERVICE_ACCOUNT_TOKEN
 }
 
+# Setup PVC for dynamic plugins caching
+setup_pvc() {
+    print_header "Setting up Dynamic Plugins PVC"
+    
+    local pvc_name="dynamic-plugins-root"
+    
+    if resource_exists pvc "$pvc_name" "$RHDH_NAMESPACE"; then
+        print_warning "PVC $pvc_name already exists"
+    else
+        print_info "Creating PVC for dynamic plugins cache..."
+        envsubst < "$RHDH_DIR/dynamic-plugins-pvc.yaml" | oc apply -f -
+        print_success "PVC created"
+    fi
+}
+
 # Deploy Backstage CR
 deploy_backstage() {
     print_header "Deploying RHDH Instance"
     
     export RHDH_NAMESPACE
     
-    if resource_exists backstage backstage "$RHDH_NAMESPACE"; then
+    if resource_exists backstage demo "$RHDH_NAMESPACE"; then
         print_warning "Backstage CR already exists - patching..."
         
         # Add annotation to trigger reconciliation
@@ -405,7 +420,7 @@ deploy_backstage() {
         print_success "Backstage CR patched"
     else
         print_info "Creating Backstage CR..."
-        envsubst < "$MANIFESTS_DIR/backstage-cr-template.yaml" | oc apply -f -
+        envsubst < "$RHDH_DIR/backstage-cr-template.yaml" | oc apply -f -
         print_success "Backstage CR created"
     fi
 }
@@ -509,6 +524,7 @@ main() {
     get_ocp_credentials       # Get OCP API URL and SA token
     setup_secrets             # Now includes OCP credentials
     setup_configmaps
+    setup_pvc                 # Create PVC for dynamic plugins cache
     deploy_backstage
     wait_for_ready
     print_summary

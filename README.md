@@ -13,12 +13,16 @@ demo-templates/
 │   ├── docs/                  # TechDocs documentation
 │   ├── api/                   # OpenAPI specification
 │   └── catalog-info.yaml      # Backstage catalog entity
-├── manifests/
+├── manifests/                 # GitOps manifests (scaffolded per app)
 │   ├── helm/
 │   │   ├── app/               # Application Helm chart (deployment, service, route)
 │   │   └── build/             # CI/CD Helm chart (pipelines, triggers, tasks)
-│   ├── argocd/                # ArgoCD Application manifests (dev, staging, prod)
-│   └── rhdh/                  # RHDH instance configuration
+│   └── argocd/                # ArgoCD Application manifests (dev, staging, prod)
+├── rhdh/                      # RHDH platform configuration
+│   ├── app-config-template.yaml
+│   ├── backstage-cr-template.yaml
+│   ├── dynamic-plugins-template.yaml
+│   └── namespace.yaml
 └── scripts/                   # Setup and configuration scripts
     ├── setup-cluster.sh       # Main setup script
     ├── setup-operators.sh     # Operator installation
@@ -55,7 +59,7 @@ demo-templates/
 
 RHDH requires a GitHub App for authentication and integration.
 
-1. **Create a GitHub App** at `https://github.com/settings/apps/new`:
+1. **Create a GitHub App** at https://github.com/settings/apps/new:
    - **App name**: `RHDH Demo` (or your preferred name)
    - **Homepage URL**: `https://backstage-demo-rhdh.apps.YOUR_CLUSTER_DOMAIN`
    - **Callback URL**: `https://backstage-demo-rhdh.apps.YOUR_CLUSTER_DOMAIN/api/auth/github/handler/frame`

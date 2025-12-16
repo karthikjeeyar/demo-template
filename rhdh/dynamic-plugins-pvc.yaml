@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-plugins-root
+  namespace: ${RHDH_NAMESPACE}
+  labels:
+    app.kubernetes.io/name: rhdh
+    app.kubernetes.io/component: backstage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
