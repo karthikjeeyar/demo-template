@@ -1,6 +1,9 @@
 # Production environment overrides
 # This file extends Values.yaml with production-specific configurations
 
+app:
+  environment: prod
+
 # Image tag - updated by Tekton promote pipeline
 image:
   tag: latest

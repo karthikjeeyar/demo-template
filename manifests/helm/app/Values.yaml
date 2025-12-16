@@ -1,5 +1,6 @@
 app:
   name: ${{ values.component_id }}
+  environment: dev
   namespace: ${{ values.component_id }}-dev
   clusterDomain: ${{ values.cluster_domain }}
 

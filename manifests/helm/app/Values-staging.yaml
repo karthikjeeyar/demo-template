@@ -1,6 +1,9 @@
 # Staging environment overrides
 # This file extends Values.yaml with staging-specific configurations
 
+app:
+  environment: staging
+
 # Image tag - updated by Tekton promote pipeline
 image:
   tag: latest
