@@ -159,6 +159,35 @@ detect_cluster_domain() {
     export CLUSTER_DOMAIN
 }
 
+# Patch template.yaml with cluster domain
+patch_template() {
+    print_header "Patching Template with Cluster Domain"
+    
+    local template_file="$PROJECT_ROOT/template.yaml"
+    
+    if [ -f "$template_file" ]; then
+        # Check if placeholder exists
+        if grep -q "CLUSTER_DOMAIN_PLACEHOLDER" "$template_file"; then
+            print_info "Updating template.yaml with cluster domain: $CLUSTER_DOMAIN"
+            
+            # Use sed to replace the placeholder
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS sed requires empty string for -i
+                sed -i '' "s|CLUSTER_DOMAIN_PLACEHOLDER|$CLUSTER_DOMAIN|g" "$template_file"
+            else
+                # Linux sed
+                sed -i "s|CLUSTER_DOMAIN_PLACEHOLDER|$CLUSTER_DOMAIN|g" "$template_file"
+            fi
+            
+            print_success "Template patched with cluster domain"
+        else
+            print_warning "Placeholder not found in template.yaml - may already be patched"
+        fi
+    else
+        print_warning "template.yaml not found at: $template_file"
+    fi
+}
+
 # Auto-detect ArgoCD password
 detect_argocd_password() {
     if [ -z "$ARGOCD_PASSWORD" ]; then
@@ -471,6 +500,7 @@ main() {
     load_env_file
     validate_env
     detect_cluster_domain
+    patch_template            # Patch template.yaml with cluster domain
     detect_argocd_password
     read_private_key
     generate_backend_secret
