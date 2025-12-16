@@ -152,6 +152,7 @@ spec:
         description: ${{ parameters.description }}
         sourcePath: ./source-code
         repoVisibility: public
+        defaultBranch: main
 
     # Step 3: Register component in catalog
     - id: register
@@ -200,6 +201,7 @@ spec:
         description: GitOps resources for ${{ parameters.component_id }}
         sourcePath: ./tenant-gitops
         repoVisibility: public
+        defaultBranch: main
 
     # Step 6: Create ArgoCD resources
     - id: create-argocd-resources
