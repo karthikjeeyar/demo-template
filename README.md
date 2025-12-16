@@ -59,10 +59,21 @@ RHDH requires a GitHub App for authentication and integration.
    - **App name**: `RHDH Demo` (or your preferred name)
    - **Homepage URL**: `https://backstage-demo-rhdh.apps.YOUR_CLUSTER_DOMAIN`
    - **Callback URL**: `https://backstage-demo-rhdh.apps.YOUR_CLUSTER_DOMAIN/api/auth/github/handler/frame`
-   - **Webhook URL**: Create one at [smee.io](https://smee.io)
+   - **Webhook URL**: `https://backstage-demo-rhdh.YOUR_CLUSTER_DOMAIN/api/events/github`
    - **Permissions**: 
-     - Repository: `Read & Write` (Contents, Pull requests)
-     - Organization: `Read` (Members)
+
+        - Reading software components:
+            - Contents: `Read-only`
+            - Commit statuses: `Read-only`
+        - Reading organization data:
+            - Members: `Read-only`
+        - Publishing software templates:
+            - Administration: `Read & write` (for creating repositories)
+            - Contents: `Read & write`
+            - Metadata: `Read-only`
+            - Pull requests: `Read & write`
+            - Issues: `Read & write`
+
 
 2. **After creating the app**:
    - Note the `App ID` and `Client ID`
