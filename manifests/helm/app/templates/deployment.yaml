@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/name: {{ .Values.app.name }}
         app.kubernetes.io/instance: {{ .Values.app.name }}
         app.kubernetes.io/component: application
+        backstage.io/kubernetes-id: {{ .Values.app.name }}
     spec:
       {{- if and .Values.serviceAccount (default true .Values.serviceAccount.create) }}
       serviceAccountName: {{ .Values.app.name }}
