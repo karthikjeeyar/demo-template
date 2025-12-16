@@ -4,8 +4,8 @@ metadata:
   name: {{ include "app.nameWithEnv" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.app.name }}
-    app.kubernetes.io/instance: {{ .Values.app.name }}
+    app.kubernetes.io/name: {{ include "app.nameWithEnv" . }}
+    app.kubernetes.io/instance: {{ include "app.nameWithEnv" . }}
     app.kubernetes.io/component: application
     backstage.io/kubernetes-id: {{ .Values.app.name }}
 spec:

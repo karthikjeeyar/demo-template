@@ -4,9 +4,9 @@
 app:
   environment: prod
 
-# Image tag - updated by Tekton promote pipeline
+# Image tag
 image:
-  tag: latest
+  tag: prod
 
 # Environment variables - override for production
 env:

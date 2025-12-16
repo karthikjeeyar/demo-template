@@ -4,9 +4,9 @@
 app:
   environment: staging
 
-# Image tag - updated by Tekton promote pipeline
+# Image tag
 image:
-  tag: latest
+  tag: staging
 
 # Environment variables - override for staging
 env:

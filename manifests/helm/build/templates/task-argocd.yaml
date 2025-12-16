@@ -43,8 +43,8 @@ spec:
         set -e
         
         echo "=== Configuring Git ==="
-        git config --global user.email "tekton@backstage.io"
-        git config --global user.name "Tekton Pipeline"
+        git config --global user.email "tekton@rhdh-demo.io"
+        git config --global user.name "Tekton Pipeline (RHDH Demo)"
         
         echo "=== Cloning GitOps Repository ==="
         git clone https://${GIT_USERNAME}:${GIT_TOKEN}@{{ .Values.git.host }}/{{ .Values.git.org }}/{{ .Values.app.name }}-gitops.git
