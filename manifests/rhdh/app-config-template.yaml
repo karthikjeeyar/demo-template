@@ -87,6 +87,9 @@ data:
                 - group: 'argoproj.io'
                   apiVersion: 'v1alpha1'
                   plural: 'rollouts'
+                - group: 'route.openshift.io'
+                  apiVersion: 'v1'
+                  plural: 'routes'
 
     # ArgoCD plugin configuration
     argocd:
