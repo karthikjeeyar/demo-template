@@ -71,11 +71,22 @@ data:
       clusterLocatorMethods:
         - type: config
           clusters:
-            - url: https://kubernetes.default.svc
-              name: local
-              authProvider: serviceAccount
+            - url: ${OCP_API_URL}
+              name: ocp
+              authProvider: 'serviceAccount'
               skipTLSVerify: true
               skipMetricsLookup: true
+              serviceAccountToken: ${OCP_SERVICE_ACCOUNT_TOKEN}
+              customResources:
+                - group: 'tekton.dev'
+                  apiVersion: 'v1'
+                  plural: 'pipelineruns'
+                - group: 'tekton.dev'
+                  apiVersion: 'v1'
+                  plural: 'taskruns'
+                - group: 'argoproj.io'
+                  apiVersion: 'v1alpha1'
+                  plural: 'rollouts'
 
     # ArgoCD plugin configuration
     argocd:

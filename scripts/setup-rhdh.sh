@@ -245,7 +245,9 @@ setup_secrets() {
         --from-literal=GITHUB_ORG="$GITHUB_ORG" \
         --from-literal=ARGOCD_USERNAME="$ARGOCD_USERNAME" \
         --from-literal=ARGOCD_PASSWORD="${ARGOCD_PASSWORD:-}" \
-        --from-literal=BACKEND_SECRET="$BACKEND_SECRET"
+        --from-literal=BACKEND_SECRET="$BACKEND_SECRET" \
+        --from-literal=OCP_API_URL="${OCP_API_URL:-}" \
+        --from-literal=OCP_SERVICE_ACCOUNT_TOKEN="${OCP_SERVICE_ACCOUNT_TOKEN:-}"
     
     print_success "Secret created"
 }
@@ -306,6 +308,55 @@ EOF
         
         print_success "ClusterRoleBinding created"
     fi
+}
+
+# Get OCP API URL and Service Account Token for Kubernetes plugin
+get_ocp_credentials() {
+    print_header "Getting OCP Credentials for Kubernetes Plugin"
+    
+    # Get OCP API URL from current login
+    OCP_API_URL=$(oc whoami --show-server)
+    print_success "OCP API URL: $OCP_API_URL"
+    
+    # Create a long-lived service account token for the Kubernetes plugin
+    print_info "Creating service account token..."
+    
+    # Create the token (valid for 1 year)
+    OCP_SERVICE_ACCOUNT_TOKEN=$(oc create token default -n "$RHDH_NAMESPACE" --duration=8760h 2>/dev/null || echo "")
+    
+    if [ -z "$OCP_SERVICE_ACCOUNT_TOKEN" ]; then
+        print_warning "Could not create token with 'oc create token', trying alternative method..."
+        
+        # Fallback: Create a secret-based token (works on older clusters)
+        local token_secret_name="rhdh-sa-token"
+        
+        if ! resource_exists secret "$token_secret_name" "$RHDH_NAMESPACE"; then
+            cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: $token_secret_name
+  namespace: $RHDH_NAMESPACE
+  annotations:
+    kubernetes.io/service-account.name: default
+type: kubernetes.io/service-account-token
+EOF
+            # Wait for the token to be populated
+            sleep 3
+        fi
+        
+        OCP_SERVICE_ACCOUNT_TOKEN=$(oc get secret "$token_secret_name" -n "$RHDH_NAMESPACE" \
+            -o jsonpath='{.data.token}' 2>/dev/null | base64 -d || echo "")
+    fi
+    
+    if [ -n "$OCP_SERVICE_ACCOUNT_TOKEN" ]; then
+        print_success "Service account token created"
+    else
+        print_error "Failed to create service account token"
+        print_info "Kubernetes plugin may not work correctly"
+    fi
+    
+    export OCP_API_URL OCP_SERVICE_ACCOUNT_TOKEN
 }
 
 # Deploy Backstage CR
@@ -424,9 +475,10 @@ main() {
     read_private_key
     generate_backend_secret
     setup_namespace
-    setup_secrets
+    setup_rbac                # Setup RBAC first so SA has permissions
+    get_ocp_credentials       # Get OCP API URL and SA token
+    setup_secrets             # Now includes OCP credentials
     setup_configmaps
-    setup_rbac
     deploy_backstage
     wait_for_ready
     print_summary
