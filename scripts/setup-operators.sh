@@ -167,7 +167,7 @@ spec:
   name: openshift-gitops-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: openshift-gitops-operator.v1.18.1
+  startingCSV: openshift-gitops-operator.v1.18.2
 EOF
         
         wait_for_operator "openshift-gitops-operator" "openshift-operators"
@@ -224,7 +224,7 @@ metadata:
   name: rhdh
   namespace: openshift-operators
 spec:
-  channel: fast-1.4
+  channel: fast-1.8
   installPlanApproval: Automatic
   name: rhdh
   source: redhat-operators
