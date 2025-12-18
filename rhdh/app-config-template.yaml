@@ -16,7 +16,63 @@ data:
       baseUrl: https://backstage-demo-${RHDH_NAMESPACE}.${CLUSTER_DOMAIN}
       cors:
         origin: https://backstage-demo-${RHDH_NAMESPACE}.${CLUSTER_DOMAIN}
+      
+      actions:
+        pluginSources:
+          - software-catalog-mcp-tool
+          - techdocs-mcp-tool
+      externalAccess:
+        - type: static
+          options:
+            token: ${MCP_TOKEN}
+            subject: mcp-clients
+      csp:
+        upgrade-insecure-requests: false
+        img-src:
+          - "'self'"
+          - "data:"
+          - https://img.freepik.com
+          - https://cdn.dribbble.com
+          - https://avatars.githubusercontent.com
+          - https://www.gravatar.com
+          - https://issues.redhat.com
 
+   
+    # Proxy endpoints
+    proxy:
+      endpoints:
+        '/jira/api':
+          target: https://issues.redhat.com
+          headers:
+            Authorization: "Bearer ${JIRA_TOKEN}"
+            Accept: 'application/json'
+            Content-Type: 'application/json'
+            X-Atlassian-Token: 'no-check'
+            User-Agent: 'developer-hub'
+        '/quay/api':
+          target: 'https://quay.io'
+          credentials: require
+          headers:
+            X-Requested-With: 'XMLHttpRequest'
+            # Uncomment and use the Authorization header below to access a private Quay
+            # Repository using a token. Refer to the "Applications and Tokens" section
+            # at https://docs.quay.io/api/ to find the instructions to generate a token
+            # Authorization: 'Bearer <YOUR TOKEN>'
+          changeOrigin: true
+          # Change to "false" in case of using self hosted quay instance with a self-signed certificate
+          secure: true
+
+    quay:
+      # The UI url for Quay, used to generate the link to Quay
+      uiUrl: 'https://quay.io'
+
+    # Jira
+    jira:
+      proxyPath: "/jira/api"
+      host: https://issues.redhat.com
+      product: datacenter
+
+   
     # GitHub App Authentication
     auth:
       environment: production

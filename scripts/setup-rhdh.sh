@@ -6,6 +6,7 @@
 #   - GitHub App authentication
 #   - Dynamic plugins (ArgoCD, Tekton, Kubernetes, etc.)
 #   - Catalog integration
+#   - Lightspeed AI (Llama Stack) integration
 #
 # This script is idempotent - safe to run multiple times.
 #
@@ -263,6 +264,8 @@ setup_secrets() {
     fi
     
     print_info "Creating secret $secret_name..."
+    MCP_TOKEN=$(node -p "require('crypto').randomBytes(24).toString('base64')")
+    export MCP_TOKEN
     
     oc create secret generic "$secret_name" -n "$RHDH_NAMESPACE" \
         --from-literal=GITHUB_APP_ID="$GITHUB_APP_ID" \
@@ -276,7 +279,10 @@ setup_secrets() {
         --from-literal=ARGOCD_PASSWORD="${ARGOCD_PASSWORD:-}" \
         --from-literal=BACKEND_SECRET="$BACKEND_SECRET" \
         --from-literal=OCP_API_URL="${OCP_API_URL:-}" \
-        --from-literal=OCP_SERVICE_ACCOUNT_TOKEN="${OCP_SERVICE_ACCOUNT_TOKEN:-}"
+        --from-literal=OCP_SERVICE_ACCOUNT_TOKEN="${OCP_SERVICE_ACCOUNT_TOKEN:-}" \
+        --from-literal=MCP_TOKEN="${MCP_TOKEN:-}" \
+        --from-literal=JIRA_TOKEN="${JIRA_TOKEN:-}"
+
     
     print_success "Secret created"
 }
@@ -403,6 +409,43 @@ setup_pvc() {
     fi
 }
 
+# Setup Llama Stack secrets for Lightspeed AI
+setup_llama_stack_secrets() {
+    print_header "Setting up Llama Stack Secrets"
+    
+    local secret_name="llama-stack-secrets"
+    
+    # Check if VLLM credentials are configured
+    if [ -z "$VLLM_URL" ] || [ -z "$VLLM_API_KEY" ]; then
+        print_warning "VLLM_URL or VLLM_API_KEY not set in .env"
+        print_info "Skipping Llama Stack setup - Lightspeed AI may not work"
+        print_info "To enable Lightspeed, add these to your .env file:"
+        echo "    VLLM_URL=https://your-vllm-endpoint/v1"
+        echo "    VLLM_API_KEY=your-api-key"
+        echo "    VALIDATION_MODEL_NAME=llama-31-8b-version1"
+        echo "    VALIDATION_PROVIDER=vllm"
+        return 0
+    fi
+    
+    if resource_exists secret "$secret_name" "$RHDH_NAMESPACE"; then
+        print_warning "Secret $secret_name already exists - updating..."
+        oc delete secret "$secret_name" -n "$RHDH_NAMESPACE"
+    fi
+    
+    print_info "Creating secret $secret_name..."
+    
+    # Create secret from environment variables
+    oc create secret generic "$secret_name" -n "$RHDH_NAMESPACE" \
+        --from-literal=VLLM_URL="${VLLM_URL}" \
+        --from-literal=VLLM_API_KEY="${VLLM_API_KEY}" \
+        --from-literal=VALIDATION_MODEL_NAME="${VALIDATION_MODEL_NAME:-llama-31-8b-version1}" \
+        --from-literal=VALIDATION_PROVIDER="${VALIDATION_PROVIDER:-vllm}" \
+        --from-literal=VLLM_MAX_TOKENS="${VLLM_MAX_TOKENS:-}" \
+        --from-literal=VLLM_TLS_VERIFY="${VLLM_TLS_VERIFY:-}"
+    
+    print_success "Llama Stack secrets created"
+}
+
 # Deploy Backstage CR
 deploy_backstage() {
     print_header "Deploying RHDH Instance"
@@ -525,6 +568,7 @@ main() {
     setup_secrets             # Now includes OCP credentials
     setup_configmaps
     setup_pvc                 # Create PVC for dynamic plugins cache
+    setup_llama_stack_secrets # Create secrets for Lightspeed AI
     deploy_backstage
     wait_for_ready
     print_summary
