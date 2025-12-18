@@ -8,6 +8,8 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    rhdh-demo/application: ${{ values.component_id }}
 spec:
   project: default
   source:

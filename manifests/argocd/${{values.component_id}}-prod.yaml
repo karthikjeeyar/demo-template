@@ -10,6 +10,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "-2"
     # Production requires manual sync for demo purposes
     argocd.argoproj.io/compare-options: IgnoreExtraneous
+  labels:
+    rhdh-demo/application: ${{ values.component_id }}
 spec:
   project: default
   source:
