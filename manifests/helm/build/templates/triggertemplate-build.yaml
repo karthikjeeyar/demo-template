@@ -41,8 +41,9 @@ spec:
           - name: IMAGE
             value: '{{ .Values.image.host }}/{{ .Values.image.organization }}/{{ .Values.image.name }}'
           - name: IMAGE_TAG
-            # Use short git SHA for unique, traceable image tags
-            value: $(tt.params.git-revision)
+            # To use the git revision, we need to use the $(tt.params.git-revision)
+            # Use 'latest' so staging/prod promotions can find this image
+            value: latest
           - name: PATH_CONTEXT
             value: .
         pipelineRef:
