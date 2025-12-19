@@ -71,14 +71,12 @@ spec:
         IMAGE_TAG="$(params.image-tag)"
         IMAGE_DIGEST="$(params.image-digest)"
         
-        # Auto-detect: Use digest for OpenShift internal registry (all environments)
-        # OpenShift ImageStreams work better with immutable digest references
+        # Always use digest when available - ensures unique commits to GitOps repo
+        # even when using 'latest' tag
         SHOULD_USE_DIGEST="false"
-        if echo "$IMAGE_HOST" | grep -q "openshift-image-registry"; then
-          if [ -n "$IMAGE_DIGEST" ]; then
-            SHOULD_USE_DIGEST="true"
-            echo "📦 OpenShift internal registry detected - using SHA digest"
-          fi
+        if [ -n "$IMAGE_DIGEST" ]; then
+          SHOULD_USE_DIGEST="true"
+          echo "📦 Using SHA digest for immutable image reference"
         fi
         
         echo "=== Configuration ==="
