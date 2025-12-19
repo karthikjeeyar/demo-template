@@ -4,9 +4,12 @@
 app:
   environment: prod
 
-# Image tag
+# Image configuration - prod has its own digest to prevent inheriting from dev
 image:
   tag: prod
+  # Digest must be explicitly set here to override base Values.yaml
+  # Will be populated by promotion pipeline
+  digest: ""
 
 # Environment variables - override for production
 env:

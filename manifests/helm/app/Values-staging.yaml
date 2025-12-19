@@ -4,9 +4,12 @@
 app:
   environment: staging
 
-# Image tag
+# Image configuration - staging has its own digest to prevent inheriting from dev
 image:
   tag: staging
+  # Digest must be explicitly set here to override base Values.yaml
+  # Will be populated by promotion pipeline
+  digest: ""
 
 # Environment variables - override for staging
 env:
