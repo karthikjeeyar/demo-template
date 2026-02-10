@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "app.nameWithEnv" . }}
+  name: {{ .Values.app.name }}-
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ include "app.nameWithEnv" . }}
-    app.kubernetes.io/instance: {{ include "app.nameWithEnv" . }}
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Values.app.name }}
     app.kubernetes.io/component: application
     backstage.io/kubernetes-id: {{ .Values.app.name }}
 spec:
@@ -20,10 +20,9 @@ spec:
         app.kubernetes.io/name: {{ .Values.app.name }}
         app.kubernetes.io/instance: {{ .Values.app.name }}
         app.kubernetes.io/component: application
-        backstage.io/kubernetes-id: {{ .Values.app.name }}
     spec:
       {{- if and .Values.serviceAccount (default true .Values.serviceAccount.create) }}
-      serviceAccountName: {{ .Values.app.name }}
+      serviceAccountName: {{ include "app.serviceAccountName" . }}
       {{- end }}
       containers:
         - name: {{ .Values.app.name }}

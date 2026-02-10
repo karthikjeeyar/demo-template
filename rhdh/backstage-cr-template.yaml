@@ -68,6 +68,6 @@ spec:
               - emptyDir: {}
                 name: rag-data-volume
               - name: dynamic-plugins-root
-                emptyDir: null
+                "$patch": replace
                 persistentVolumeClaim:
                   claimName: dynamic-plugins-root
