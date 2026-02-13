@@ -2,17 +2,17 @@
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name:  {{ include "app.nameWithEnv" . }}
+  name: {{ .Values.app.name }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ include "app.nameWithEnv" . }}
-    app.kubernetes.io/instance: {{ include "app.nameWithEnv" . }}
+    app.kubernetes.io/name: {{ .Values.app.name }}
+    app.kubernetes.io/instance: {{ .Values.app.name }}
     app.kubernetes.io/component: application
-    backstage.io/kubernetes-id: {{ include "app.nameWithEnv" . }}
+    backstage.io/kubernetes-id: {{ .Values.app.name }}
 spec:
   to:
     kind: Service
-    name: {{ include "app.nameWithEnv" . }}
+    name: {{ .Values.app.name }}
     weight: 100
   port:
     targetPort: http

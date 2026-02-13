@@ -5,9 +5,9 @@ metadata:
   name: {{ .Values.app.name }}-config
   namespace: {{ .Release.Namespace }}
   labels:
-    backstage.io/kubernetes-id:  {{ include "app.nameWithEnv" . }}
-    app.kubernetes.io/name:  {{ include "app.nameWithEnv" . }}
-    app.kubernetes.io/instance:  {{ include "app.nameWithEnv" . }}
+    backstage.io/kubernetes-id:  {{ .Values.app.name }}
+    app.kubernetes.io/name:  {{ .Values.app.name }}
+    app.kubernetes.io/instance:  {{ .Values.app.name }}
     app.kubernetes.io/component: application
 data:
   {{- range $key, $value := .Values.configMap.data }}
