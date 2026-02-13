@@ -71,7 +71,7 @@ spec:
           title: Cluster Domain
           type: string
           description: OpenShift cluster domain (e.g., apps.mycluster.example.com)
-          default: apps.rosa.q7y76-sfa68-yeo.s4le.p3.openshiftapps.com
+          default: apps.rosa.nj88g-soani-kii.ivwd.p3.openshiftapps.com
         argocd_namespace:
           title: ArgoCD Namespace
           type: string
