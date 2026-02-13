@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}
+  name: {{ include "app.nameWithEnv" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.app.name }}
-    app.kubernetes.io/instance: {{ .Values.app.name }}
+    app.kubernetes.io/name:  {{ include "app.nameWithEnv" . }}
+    app.kubernetes.io/instance:  {{ include "app.nameWithEnv" . }}
     app.kubernetes.io/component: application
     backstage.io/kubernetes-id: {{ .Values.app.name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Values.app.name }}
-      app.kubernetes.io/instance: {{ .Values.app.name }}
+      app.kubernetes.io/name:  {{ include "app.nameWithEnv" . }}
+      app.kubernetes.io/instance:  {{ include "app.nameWithEnv" . }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ .Values.app.name }}
-        app.kubernetes.io/instance: {{ .Values.app.name }}
+        app.kubernetes.io/name:  {{ include "app.nameWithEnv" . }}
+        app.kubernetes.io/instance:  {{ include "app.nameWithEnv" . }}
         app.kubernetes.io/component: application
     spec:
       {{- if and .Values.serviceAccount (default true .Values.serviceAccount.create) }}
