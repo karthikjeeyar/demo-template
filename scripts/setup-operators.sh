@@ -167,7 +167,7 @@ spec:
   name: openshift-gitops-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: openshift-gitops-operator.v1.18.2
+  startingCSV: openshift-gitops-operator.v1.19.1
 EOF
         
         wait_for_operator "openshift-gitops-operator" "openshift-operators"
